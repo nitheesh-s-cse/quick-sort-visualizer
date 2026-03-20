@@ -42,7 +42,7 @@ export function generateQuickSortSteps(inputArray) {
       nodeData: {
         ...node,
         phase: 'choose_pivot',
-        pivotValue
+        pivotValue: pivot
       }
     });
 
