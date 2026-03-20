@@ -1,4 +1,4 @@
-export class ThreeQuickSortScene {
+export class QuickSortTreeScene {
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
     this.options = options;
@@ -9,20 +9,20 @@ export class ThreeQuickSortScene {
     this.rootGroup = null;
 
     this.nodes = new Map();
+    this.nodeMeshes = [];
     this.edges = [];
-    this.backgroundGroup = null;
-    this.hoveredNode = null;
-    this.selectedNode = null;
 
     this.animationId = null;
     this.clock = new THREE.Clock();
 
-    this.isDragging = false;
-    this.previousMouse = { x: 0, y: 0 };
-    this.rotationTarget = { x: -0.2, y: 0.0 };
-
-    this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
+    this.raycaster = new THREE.Raycaster();
+    this.hoveredId = null;
+    this.selectedId = null;
+
+    this.isDragging = false;
+    this.prevMouse = { x: 0, y: 0 };
+    this.rotationTarget = { x: -0.18, y: 0.0 };
 
     this.boundResize = this.onResize.bind(this);
     this.boundMouseMove = this.onMouseMove.bind(this);
@@ -33,195 +33,219 @@ export class ThreeQuickSortScene {
     this.boundMouseDrag = this.onMouseDrag.bind(this);
   }
 
-  initialize(treeNodes, currentArray) {
+  initialize(nodes) {
     this.dispose();
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x09101e);
+    this.scene.background = new THREE.Color(0x08101d);
 
-    const width = this.container.clientWidth || 1000;
-    const height = this.container.clientHeight || 560;
+    const width = this.container.clientWidth || 1200;
+    const height = this.container.clientHeight || 700;
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.camera.position.set(0, -2, 24);
+    this.camera.position.set(0, -8, 42);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.innerHTML = '';
     this.container.appendChild(this.renderer.domElement);
 
     this.rootGroup = new THREE.Group();
     this.scene.add(this.rootGroup);
 
-    this.backgroundGroup = new THREE.Group();
-    this.scene.add(this.backgroundGroup);
-    this.createBackgroundAssets();
-
     this.addLights();
-    this.createGraph(treeNodes);
+    this.createTree(nodes);
     this.attachEvents();
-
     this.animate();
   }
 
   addLights() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.72);
     this.scene.add(ambient);
 
-    const directional = new THREE.DirectionalLight(0xffffff, 0.9);
-    directional.position.set(3, 6, 10);
+    const directional = new THREE.DirectionalLight(0xffffff, 0.85);
+    directional.position.set(4, 10, 10);
     this.scene.add(directional);
 
-    const cyan = new THREE.PointLight(0x1dd6ff, 0.8, 50);
-    cyan.position.set(-8, 2, 8);
-    this.scene.add(cyan);
+    const blueLight = new THREE.PointLight(0x4ea1ff, 0.8, 90);
+    blueLight.position.set(-12, 2, 12);
+    this.scene.add(blueLight);
 
-    const purple = new THREE.PointLight(0x9c5cff, 0.8, 50);
-    purple.position.set(8, -5, 8);
-    this.scene.add(purple);
+    const cyanLight = new THREE.PointLight(0x18d0e6, 0.55, 90);
+    cyanLight.position.set(12, -8, 14);
+    this.scene.add(cyanLight);
   }
 
-  createBackgroundAssets() {
-    if (!this.backgroundGroup) return;
-    this.clearBackgroundAssets();
-
-    for (let i = 0; i < 36; i++) {
-      const edge = new THREE.TorusGeometry(9 + (i % 3), 0.04, 8, 100);
-      const material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(`hsl(${200 + i * 3}, 90%, 65%)`),
-        transparent: true,
-        opacity: 0.18
-      });
-      const ring = new THREE.Mesh(edge, material);
-      ring.rotation.x = Math.PI / 2;
-      ring.rotation.y = (i / 36) * Math.PI * 2;
-      ring.userData = { spin: 0.02 + (i % 7) * 0.001 };
-      this.backgroundGroup.add(ring);
-    }
-
-    for (let i = 0; i < 18; i++) {
-      const star = new THREE.OctahedronGeometry(0.2, 0);
-      const material = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(`hsl(${180 + i * 9}, 85%, 68%)`),
-        emissive: new THREE.Color(`hsl(${180 + i * 9}, 100%, 75%)`),
-        emissiveIntensity: 0.8,
-        roughness: 0.2,
-        metalness: 0.9,
-        transparent: true,
-        opacity: 0.85
-      });
-      const mesh = new THREE.Mesh(star, material);
-      mesh.position.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 30);
-      mesh.userData = { spin: 0.01 + Math.random() * 0.02 };
-      this.backgroundGroup.add(mesh);
-    }
-  }
-
-  clearBackgroundAssets() {
-    if (!this.backgroundGroup) return;
-    this.backgroundGroup.children.forEach(obj => {
-      if (obj.geometry) obj.geometry.dispose?.();
-      if (obj.material) obj.material.dispose?.();
-    });
-    this.backgroundGroup.clear();
-  }
-
-  createTextTexture(lines, bg = '#19305f', color = '#ffffff') {
+  createNodeTexture(node, style = {}) {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 256;
+    canvas.width = 1024;
+    canvas.height = 420;
     const ctx = canvas.getContext('2d');
 
+    const bg = style.bg || '#17305a';
+    const border = style.border || '#274a84';
+    const glow = style.glow || '#4ea1ff';
+    const text = style.text || '#ffffff';
+
     ctx.fillStyle = bg;
-    ctx.beginPath();
-    ctx.roundRect(14, 14, 484, 228, 24);
-    ctx.fill();
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 8;
+    this.roundRect(ctx, 20, 20, 984, 380, 28, true, true);
 
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 38px Arial';
-    ctx.fillText(lines[0] || '', 256, 90);
+    ctx.strokeStyle = glow;
+    ctx.lineWidth = 2;
+    this.roundRect(ctx, 28, 28, 968, 364, 24, false, true);
 
-    ctx.font = '28px Arial';
-    ctx.fillText(lines[1] || '', 256, 148);
+    ctx.fillStyle = '#dce9ff';
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Range: [${node.low}, ${node.high}]`, 44, 58);
 
-    const texture = new THREE.CanvasTexture(canvas);
-    return texture;
+    ctx.font = 'bold 24px Arial';
+    ctx.fillStyle = '#a9d8ff';
+    ctx.fillText(node.branchLabel === 'root' ? 'Root Node' : `Branch: ${node.branchLabel}`, 44, 92);
+
+    const arr = node.subarray || [];
+    const pivotIndex = node.pivotIndexLocal;
+    const boxW = Math.max(52, Math.min(78, Math.floor(860 / Math.max(1, arr.length))));
+    const gap = 8;
+    const totalW = arr.length * boxW + Math.max(0, arr.length - 1) * gap;
+    const startX = Math.max(44, Math.floor((1024 - totalW) / 2));
+    const y = 125;
+    const h = 68;
+
+    for (let i = 0; i < arr.length; i++) {
+      const x = startX + i * (boxW + gap);
+
+      ctx.fillStyle = '#0f1d38';
+      ctx.strokeStyle = '#33538d';
+      ctx.lineWidth = 3;
+      this.roundRect(ctx, x, y, boxW, h, 12, true, true);
+
+      if (pivotIndex !== null && pivotIndex !== undefined && i === pivotIndex) {
+        ctx.strokeStyle = '#4ea1ff';
+        ctx.lineWidth = 6;
+        this.roundRect(ctx, x - 2, y - 2, boxW + 4, h + 4, 12, false, true);
+      }
+
+      ctx.fillStyle = text;
+      ctx.font = 'bold 28px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(arr[i]), x + boxW / 2, y + 42);
+    }
+
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 22px Arial';
+
+    ctx.fillStyle = '#6df0a4';
+    ctx.fillText('<= pivot', 44, 250);
+    this.drawMiniBoxes(ctx, node.leftPartition || [], 44, 268, '#143624', '#2dcc71');
+
+    ctx.fillStyle = '#8aefff';
+    ctx.fillText('>= pivot', 44, 338);
+    this.drawMiniBoxes(ctx, node.rightPartition || [], 44, 356, '#0f3140', '#18d0e6');
+
+    return new THREE.CanvasTexture(canvas);
   }
 
-  createNodeMesh(node) {
+  drawMiniBoxes(ctx, arr, startX, startY, fill, stroke) {
+    const boxW = 38;
+    const boxH = 32;
+    const gap = 6;
+
+    for (let i = 0; i < arr.length && i < 18; i++) {
+      const x = startX + i * (boxW + gap);
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      this.roundRect(ctx, x, startY, boxW, boxH, 8, true, true);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(arr[i]), x + boxW / 2, startY + 21);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  roundRect(ctx, x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+
+  createTree(nodes) {
+    nodes.forEach(node => this.createNode(node));
+    nodes.forEach(node => {
+      if (node.parentId) {
+        const parent = nodes.find(n => n.id === node.parentId);
+        if (parent) this.createEdge(parent, node);
+      }
+    });
+  }
+
+  createNode(node) {
     const group = new THREE.Group();
     group.position.set(node.x, node.y, node.z);
     group.scale.set(0.001, 0.001, 0.001);
 
-    const sphereGeometry = new THREE.SphereGeometry(0.72, 32, 32);
-    const sphereMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1c2a55,
-      emissive: 0x11224d,
-      emissiveIntensity: 0.9,
-      roughness: 0.22,
-      metalness: 0.35
-    });
-
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.userData = { type: 'nodeSphere', nodeId: node.id };
-    group.add(sphere);
-
-    const labelTexture = this.createTextTexture(
-      [`[${node.low}, ${node.high}]`, `${(node.subarray || []).join(', ')}`],
-      '#1f366a'
-    );
-
-    const labelMaterial = new THREE.SpriteMaterial({
-      map: labelTexture,
+    const panelGeometry = new THREE.PlaneGeometry(7.6, 3.2);
+    const texture = this.createNodeTexture(node, {});
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
       transparent: true
     });
 
-    const ringGeometry = new THREE.TorusGeometry(1.08, 0.05, 10, 64);
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0x4a79d8,
-      transparent: true,
-      opacity: 0.5
-    });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0, 0, 0);
-    ring.visible = false;
-    group.add(ring);
+    const panel = new THREE.Mesh(panelGeometry, material);
+    panel.userData = { nodeId: node.id };
+    group.add(panel);
 
-    const label = new THREE.Sprite(labelMaterial);
-    label.scale.set(2.4, 1.2, 1);
-    label.position.set(0, 1.45, 0);
-    group.add(label);
+    const borderGeometry = new THREE.PlaneGeometry(7.8, 3.4);
+    const borderMaterial = new THREE.MeshBasicMaterial({
+      color: 0x254170,
+      transparent: true,
+      opacity: 0.18
+    });
+    const border = new THREE.Mesh(borderGeometry, borderMaterial);
+    border.position.z = -0.02;
+    group.add(border);
 
     group.userData = {
       ...node,
+      texture,
       targetScale: 1,
       hoverScale: 1,
-      pulse: 0,
-      ring,
-      labelTexture
+      pulse: 1
     };
 
     this.rootGroup.add(group);
     this.nodes.set(node.id, group);
+    this.nodeMeshes.push(panel);
   }
 
   createEdge(parentNode, childNode) {
-    if (!parentNode || !childNode) return;
-
-    const start = new THREE.Vector3(parentNode.x, parentNode.y, parentNode.z);
-    const end = new THREE.Vector3(childNode.x, childNode.y, childNode.z);
-    const mid = new THREE.Vector3((start.x + end.x) / 2, (start.y + end.y) / 2 + 0.8, (start.z + end.z) / 2);
+    const start = new THREE.Vector3(parentNode.x, parentNode.y - 1.7, parentNode.z);
+    const end = new THREE.Vector3(childNode.x, childNode.y + 1.7, childNode.z);
+    const mid = new THREE.Vector3((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2 + 0.1);
 
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-    const points = curve.getPoints(24);
+    const points = curve.getPoints(30);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
-      color: 0x4a79d8,
+      color: 0x4b7fd4,
       transparent: true,
-      opacity: 0.75
+      opacity: 0.7
     });
 
     const line = new THREE.Line(geometry, material);
@@ -229,129 +253,148 @@ export class ThreeQuickSortScene {
     this.edges.push(line);
   }
 
-  createGraph(treeNodes) {
-    treeNodes.forEach(node => this.createNodeMesh(node));
-
-    treeNodes.forEach(node => {
-      if (node.parentId) {
-        const parent = treeNodes.find(n => n.id === node.parentId);
-        this.createEdge(parent, node);
-      }
-    });
-  }
-
-  setNodeColor(nodeId, state = 'default') {
+  updateNodeVisual(nodeId, state) {
     const group = this.nodes.get(nodeId);
     if (!group) return;
 
-    const sphere = group.children[0];
-    const label = group.children[1];
+    const baseNode = {
+      id: group.userData.id,
+      low: group.userData.low,
+      high: group.userData.high,
+      depth: group.userData.depth,
+      branchLabel: group.userData.branchLabel,
+      subarray: group.userData.subarray,
+      pivotValue: group.userData.pivotValue,
+      pivotIndexLocal: group.userData.pivotIndexLocal,
+      leftPartition: group.userData.leftPartition || [],
+      rightPartition: group.userData.rightPartition || []
+    };
 
-    let color = 0x1c2a55;
-    let emissive = 0x11224d;
-    let labelBg = '#1f366a';
+    let style = {
+      bg: '#17305a',
+      border: '#274a84',
+      glow: '#4ea1ff',
+      text: '#ffffff'
+    };
 
-    if (state === 'active') {
-      color = 0x1dd6ff;
-      emissive = 0x006b80;
-      labelBg = '#00576a';
+    if (state === 'hover') {
+      style = { bg: '#1d3b6d', border: '#4ea1ff', glow: '#7dc1ff', text: '#ffffff' };
     } else if (state === 'pivot') {
-      color = 0xffd24d;
-      emissive = 0x8f6c00;
-      labelBg = '#7b6200';
+      style = { bg: '#16345e', border: '#4ea1ff', glow: '#4ea1ff', text: '#ffffff' };
     } else if (state === 'compare') {
-      color = 0xff8b3d;
-      emissive = 0x823600;
-      labelBg = '#7a3700';
-    } else if (state === 'swap') {
-      color = 0x9c5cff;
-      emissive = 0x4c2087;
-      labelBg = '#542e93';
-    } else if (state === 'sorted') {
-      color = 0x34d17b;
-      emissive = 0x145c34;
-      labelBg = '#1d7243';
+      style = { bg: '#5c2d10', border: '#ff973d', glow: '#ff973d', text: '#fff7ed' };
+    } else if (state === 'left') {
+      style = { bg: '#133924', border: '#2dcc71', glow: '#2dcc71', text: '#effff5' };
+    } else if (state === 'right') {
+      style = { bg: '#103a4a', border: '#18d0e6', glow: '#18d0e6', text: '#eefcff' };
+    } else if (state === 'final') {
+      style = { bg: '#4a3a0f', border: '#ffd24d', glow: '#ffd24d', text: '#fff7d8' };
     }
 
-    sphere.material.color.setHex(color);
-    sphere.material.emissive.setHex(emissive);
-
-    if (group.userData.ring) {
-      group.userData.ring.visible = (state === 'pivot' || state === 'compare' || state === 'swap');
-      group.userData.ring.material.color.setHex(state === 'pivot' ? 0xffd24d : state === 'compare' ? 0xff8b3d : state === 'swap' ? 0x9c5cff : 0x4a79d8);
-      group.userData.ring.material.opacity = (state === 'pivot' ? 0.92 : state === 'compare' ? 0.78 : state === 'swap' ? 0.78 : 0.3);
-    }
-
-    const low = group.userData.low;
-    const high = group.userData.high;
-    const subarray = group.userData.subarray || [];
-    if (label.material.map) label.material.map.dispose();
-    label.material.map = this.createTextTexture(
-      [`[${low}, ${high}]`, `${subarray.join(', ')}`],
-      labelBg
-    );
-    label.material.needsUpdate = true;
+    const panel = group.children[0];
+    if (panel.material.map) panel.material.map.dispose();
+    panel.material.map = this.createNodeTexture(baseNode, style);
+    panel.material.needsUpdate = true;
   }
 
-  clearNodeStates() {
-    this.nodes.forEach((_, nodeId) => this.setNodeColor(nodeId, 'default'));
+  resetNodeStates() {
+    this.nodes.forEach((group, id) => {
+      this.updateNodeVisual(id, 'default');
+      group.userData.hoverScale = 1;
+      group.userData.pulse = 1;
+    });
+  }
+
+  revealNode(nodeId) {
+    const group = this.nodes.get(nodeId);
+    if (!group) return;
+    group.userData.targetScale = 1;
   }
 
   focusNode(nodeId) {
     const group = this.nodes.get(nodeId);
     if (!group) return;
-    this.selectedNode = nodeId;
+    this.selectedId = nodeId;
     this.camera.position.x = group.position.x;
-    this.camera.position.y = group.position.y + 0.5;
-    this.camera.position.z = 12;
+    this.camera.position.y = group.position.y - 1;
+    this.camera.position.z = 18;
   }
 
-  applyStep(step, currentArray) {
+  applyStep(step) {
     if (!this.scene) return;
 
-    this.clearNodeStates();
+    if (step.type === 'create_node') {
+      const targetId = step.nodeId || step.parentNodeId;
+      if (targetId) this.revealNode(targetId);
+    }
 
-    if (step.type === 'recursive_call' || step.type === 'base_case') {
+    if (step.type === 'recursion_call') {
+      this.resetNodeStates();
       if (step.nodeId) {
-        this.setNodeColor(step.nodeId, step.type === 'base_case' ? 'sorted' : 'active');
+        this.revealNode(step.nodeId);
+        this.updateNodeVisual(step.nodeId, 'hover');
         const group = this.nodes.get(step.nodeId);
-        if (group) group.userData.targetScale = 1;
+        if (group) group.userData.pulse = 1.08;
       }
     }
 
     if (step.type === 'choose_pivot') {
+      this.resetNodeStates();
       if (step.nodeId) {
-        this.setNodeColor(step.nodeId, 'pivot');
+        this.updateNodeVisual(step.nodeId, 'pivot');
         const group = this.nodes.get(step.nodeId);
-        if (group) group.userData.pulse = 1.2;
+        if (group) group.userData.pulse = 1.12;
       }
     }
 
     if (step.type === 'compare') {
+      this.resetNodeStates();
       if (step.nodeId) {
-        this.setNodeColor(step.nodeId, 'compare');
+        this.updateNodeVisual(step.nodeId, 'compare');
         const group = this.nodes.get(step.nodeId);
-        if (group) group.userData.pulse = 1.1;
+        if (group) group.userData.pulse = 1.07;
       }
     }
 
-    if (step.type === 'swap' || step.type === 'random_swap') {
+    if (step.type === 'partition_left') {
+      this.resetNodeStates();
       if (step.nodeId) {
-        this.setNodeColor(step.nodeId, 'swap');
         const group = this.nodes.get(step.nodeId);
-        if (group) group.userData.pulse = 1.18;
+        if (group) {
+          group.userData.leftPartition = [...(step.leftSnapshot || [])];
+          group.userData.rightPartition = [...(step.rightSnapshot || [])];
+          this.updateNodeVisual(step.nodeId, 'left');
+          group.userData.pulse = 1.1;
+        }
       }
     }
 
-    if (step.type === 'partition_complete') {
+    if (step.type === 'partition_right') {
+      this.resetNodeStates();
       if (step.nodeId) {
-        this.setNodeColor(step.nodeId, 'active');
+        const group = this.nodes.get(step.nodeId);
+        if (group) {
+          group.userData.leftPartition = [...(step.leftSnapshot || [])];
+          group.userData.rightPartition = [...(step.rightSnapshot || [])];
+          this.updateNodeVisual(step.nodeId, 'right');
+          group.userData.pulse = 1.1;
+        }
+      }
+    }
+
+    if (step.type === 'base_case') {
+      this.resetNodeStates();
+      if (step.nodeId) {
+        this.updateNodeVisual(step.nodeId, 'final');
+        const group = this.nodes.get(step.nodeId);
+        if (group) group.userData.pulse = 1.08;
       }
     }
 
     if (step.type === 'complete') {
-      this.nodes.forEach((_, nodeId) => {
-        this.setNodeColor(nodeId, 'sorted');
+      this.nodes.forEach((group, id) => {
+        this.updateNodeVisual(id, 'final');
+        group.userData.pulse = 1.05;
       });
     }
   }
@@ -367,60 +410,59 @@ export class ThreeQuickSortScene {
   }
 
   onMouseMove(event) {
-    if (!this.renderer || !this.camera) return;
+    if (!this.camera || !this.renderer) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const meshes = [];
-    this.nodes.forEach(group => meshes.push(group.children[0]));
-    const intersects = this.raycaster.intersectObjects(meshes);
+    const intersections = this.raycaster.intersectObjects(this.nodeMeshes);
 
-    if (this.hoveredNode) {
-      const oldGroup = this.nodes.get(this.hoveredNode);
-      if (oldGroup) oldGroup.userData.hoverScale = 1;
-      this.hoveredNode = null;
+    if (this.hoveredId) {
+      const prev = this.nodes.get(this.hoveredId);
+      if (prev) prev.userData.hoverScale = 1;
+      this.hoveredId = null;
     }
 
-    if (intersects.length > 0) {
-      const nodeId = intersects[0].object.userData.nodeId;
-      this.hoveredNode = nodeId;
+    if (intersections.length > 0) {
+      const nodeId = intersections[0].object.userData.nodeId;
+      this.hoveredId = nodeId;
       const group = this.nodes.get(nodeId);
-      if (group) group.userData.hoverScale = 1.1;
+      if (group) group.userData.hoverScale = 1.08;
     }
   }
 
   onClick() {
-    if (!this.hoveredNode) return;
-    this.focusNode(this.hoveredNode);
-    const group = this.nodes.get(this.hoveredNode);
+    if (!this.hoveredId) return;
+    this.focusNode(this.hoveredId);
+
+    const group = this.nodes.get(this.hoveredId);
     if (group && this.options.onNodeClick) {
-      const nodeData = {
-        id: group.userData.id || null,
-        low: group.userData.low || null,
-        high: group.userData.high || null,
-        depth: group.userData.depth ?? null,
-        phase: group.userData.phase || null,
-        subarray: group.userData.subarray || [],
+      this.options.onNodeClick({
+        id: group.userData.id,
+        depth: group.userData.depth,
+        low: group.userData.low,
+        high: group.userData.high,
+        branchLabel: group.userData.branchLabel,
+        subarray: group.userData.subarray,
         pivotValue: group.userData.pivotValue,
-        pivotIndex: group.userData.pivotIndex,
-        swapIndices: group.userData.swapIndices
-      };
-      this.options.onNodeClick(nodeData);
+        leftPartition: group.userData.leftPartition,
+        rightPartition: group.userData.rightPartition
+      });
     }
   }
 
   onWheel(event) {
     if (!this.camera) return;
     this.camera.position.z += event.deltaY * 0.01;
-    this.camera.position.z = Math.max(6, Math.min(40, this.camera.position.z));
+    this.camera.position.z = Math.max(12, Math.min(65, this.camera.position.z));
   }
 
   onMouseDown(event) {
     this.isDragging = true;
-    this.previousMouse.x = event.clientX;
-    this.previousMouse.y = event.clientY;
+    this.prevMouse.x = event.clientX;
+    this.prevMouse.y = event.clientY;
   }
 
   onMouseUp() {
@@ -429,41 +471,32 @@ export class ThreeQuickSortScene {
 
   onMouseDrag(event) {
     if (!this.isDragging || !this.rootGroup) return;
-    const dx = event.clientX - this.previousMouse.x;
-    const dy = event.clientY - this.previousMouse.y;
 
-    this.rotationTarget.y += dx * 0.005;
-    this.rotationTarget.x += dy * 0.003;
-    this.rotationTarget.x = Math.max(-1.0, Math.min(0.6, this.rotationTarget.x));
+    const dx = event.clientX - this.prevMouse.x;
+    const dy = event.clientY - this.prevMouse.y;
 
-    this.previousMouse.x = event.clientX;
-    this.previousMouse.y = event.clientY;
+    this.rotationTarget.y += dx * 0.004;
+    this.rotationTarget.x += dy * 0.0025;
+    this.rotationTarget.x = Math.max(-0.8, Math.min(0.4, this.rotationTarget.x));
+
+    this.prevMouse.x = event.clientX;
+    this.prevMouse.y = event.clientY;
   }
 
   animate() {
     const tick = () => {
       if (!this.scene || !this.camera || !this.renderer) return;
 
-      const delta = this.clock.getDelta();
-
       if (this.rootGroup) {
         this.rootGroup.rotation.x = THREE.MathUtils.lerp(this.rootGroup.rotation.x, this.rotationTarget.x, 0.08);
         this.rootGroup.rotation.y = THREE.MathUtils.lerp(this.rootGroup.rotation.y, this.rotationTarget.y, 0.08);
       }
 
-      if (this.backgroundGroup) {
-        this.backgroundGroup.rotation.y += delta * 0.08;
-        this.backgroundGroup.children.forEach(child => {
-          child.rotation.x += (child.userData.spin || 0) * 0.8;
-          child.rotation.y += (child.userData.spin || 0) * 0.8;
-        });
-      }
-
       this.nodes.forEach(group => {
-        const target = group.userData.targetScale * group.userData.hoverScale * (group.userData.pulse || 1);
+        const target = group.userData.targetScale * group.userData.hoverScale * group.userData.pulse;
         group.scale.lerp(new THREE.Vector3(target, target, target), 0.12);
-        group.userData.targetScale = THREE.MathUtils.lerp(group.userData.targetScale, 1, 0.08);
         group.userData.pulse = THREE.MathUtils.lerp(group.userData.pulse, 1, 0.12);
+        group.userData.targetScale = THREE.MathUtils.lerp(group.userData.targetScale, 1, 0.1);
       });
 
       this.renderer.render(this.scene, this.camera);
@@ -475,8 +508,8 @@ export class ThreeQuickSortScene {
 
   onResize() {
     if (!this.renderer || !this.camera || !this.container) return;
-    const width = this.container.clientWidth || 1000;
-    const height = this.container.clientHeight || 560;
+    const width = this.container.clientWidth || 1200;
+    const height = this.container.clientHeight || 700;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
@@ -494,6 +527,7 @@ export class ThreeQuickSortScene {
       this.container.removeEventListener('wheel', this.boundWheel);
       this.container.removeEventListener('mousedown', this.boundMouseDown);
     }
+
     window.removeEventListener('mouseup', this.boundMouseUp);
     window.removeEventListener('mousemove', this.boundMouseDrag);
     window.removeEventListener('resize', this.boundResize);
@@ -515,14 +549,9 @@ export class ThreeQuickSortScene {
       });
     }
 
-    this.nodes.forEach(group => {
-      const labelTexture = group.userData.labelTexture;
-      if (labelTexture) labelTexture.dispose?.();
-    });
-
     this.nodes.clear();
+    this.nodeMeshes = [];
     this.edges = [];
-    this.backgroundGroup = null;
 
     if (this.renderer) {
       this.renderer.dispose();

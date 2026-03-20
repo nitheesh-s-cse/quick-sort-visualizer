@@ -3,20 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Randomized Quick Sort Visualization — CS3401 Seminar Project</title>
+  <title>Randomized Quick Sort — Recursion Tree Visualization</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="page-shell">
     <header class="hero">
       <div class="hero-content">
-        <h1>Randomized Quick Sort Visualization</h1>
-        <p class="subtitle">CS3401 Seminar Project</p>
-        <p class="hero-description">
-          Randomized Quick Sort uses a <strong>random pivot</strong> before partitioning.
-        </p>
-        <p class="hero-highlight">
-          <strong>Random pivot selection reduces worst-case probability</strong>
+        <h1>Randomized Quick Sort — Recursion Tree Visualization</h1>
+        <p class="subtitle">CS3401 Seminar Visualization</p>
+        <p class="hero-note">
+          This tree represents recursive partitioning of Quick Sort
         </p>
       </div>
     </header>
@@ -27,8 +24,8 @@
 
         <div class="form-group">
           <label for="arrayInput">Array Input (comma-separated)</label>
-          <input id="arrayInput" type="text" value="7,4,6,3,9,1,8" />
-          <small>Maximum array size: 20</small>
+          <input id="arrayInput" type="text" value="9,-3,5,2,6,8,-6,1,3" />
+          <small>Maximum array size: 15</small>
         </div>
 
         <div class="form-group">
@@ -36,16 +33,15 @@
           <input id="speedControl" type="range" min="1" max="5" value="3" />
           <div class="speed-labels">
             <span>Slow</span>
-            <span>Turbo</span>
+            <span>Fast</span>
           </div>
         </div>
 
         <div class="button-row">
           <button id="runBtn" class="primary">Run</button>
-          <button id="stepBtn">Step</button>
-          <button id="autoBtn">Auto</button>
+          <button id="stepBtn">Step-by-step</button>
+          <button id="autoBtn">Auto play</button>
           <button id="resetBtn">Reset</button>
-          <button id="randomBtn">Random array</button>
         </div>
 
         <div id="messageBox" class="message-box" aria-live="polite"></div>
@@ -54,54 +50,45 @@
       <section class="panel output-panel">
         <h2>Output</h2>
         <div class="result-card">
-          <div class="result-label">Sorted Result</div>
+          <div class="result-label">Final Result</div>
           <div id="sortedText" class="result-text">Sorted Array: [ ]</div>
         </div>
 
         <div class="stats-grid">
           <div class="stat-box">
-            <span class="stat-title">Total comparisons</span>
+            <span class="stat-title">Comparisons</span>
             <span id="compCount">0</span>
           </div>
           <div class="stat-box">
-            <span class="stat-title">Total swaps</span>
+            <span class="stat-title">Swaps</span>
             <span id="swapCount">0</span>
           </div>
           <div class="stat-box">
-            <span class="stat-title">Max recursion depth</span>
+            <span class="stat-title">Recursion depth</span>
             <span id="depthCount">0</span>
           </div>
         </div>
       </section>
 
-      <section class="panel complexity-panel">
-        <h2>Complexity</h2>
-        <ul class="complexity-list">
-          <li><strong>Randomized Quick Sort:</strong></li>
-          <li>Best: <strong>O(n log n)</strong></li>
-          <li>Average: <strong>O(n log n)</strong></li>
-          <li>Worst: <strong>O(n²)</strong></li>
+      <section class="panel info-panel">
+        <h2>Visualization Meaning</h2>
+        <p><strong>This is a true recursion tree.</strong></p>
+        <ul>
+          <li>Each node = current subarray</li>
+          <li>Pivot is highlighted</li>
+          <li>Left child = elements &lt; pivot</li>
+          <li>Right child = elements ≥ pivot</li>
         </ul>
-        <p class="info-note">
-          <strong>Randomization helps avoid worst-case scenarios</strong>
+        <p class="important-note">
+          This tree represents recursive partitioning of Quick Sort
         </p>
       </section>
 
-      <section class="panel explanation-panel">
-        <h2>Recursion Tree Explanation</h2>
-        <p>
-          This visualization represents recursion as a <strong>structured tree</strong>.
-        </p>
-        <ul>
-          <li>Each recursive call is shown as a <strong>box node</strong>.</li>
-          <li>Each partition creates <strong>left</strong> and <strong>right</strong> recursive branches.</li>
-          <li>Left subtree = elements &lt; pivot</li>
-          <li>Right subtree = elements ≥ pivot</li>
-          <li>Each node shows range [low, high] and pivot value</li>
-        </ul>
-        <p class="info-note">
-          Hover over a node to see comparison details.
-        </p>
+      <section class="panel details-panel">
+        <h2>Selected Node Details</h2>
+        <div id="nodeDetails" class="node-details">
+          Click a node to inspect its subtree.
+        </div>
       </section>
 
       <section class="panel pseudocode-panel">
@@ -120,43 +107,26 @@
 
 <span data-line="10">function partition(arr, low, high):</span>
 <span data-line="11">  pivot = arr[high]</span>
-<span data-line="12">  i = low - 1</span>
-<span data-line="13">  for j = low to high-1:</span>
-<span data-line="14">    if arr[j] &lt; pivot:</span>
-<span data-line="15">      i++</span>
-<span data-line="16">      swap(arr[i], arr[j])</span>
-<span data-line="17">  swap(arr[i+1], arr[high])</span>
-<span data-line="18">  return i + 1</span>
+<span data-line="12">  for each element compare with pivot</span>
+<span data-line="13">  split into left and right partitions</span>
         </pre>
       </section>
 
-      <section class="panel array-panel full-width">
-        <h2>Partition Array View</h2>
+      <section class="panel full-width tree-panel">
+        <h2>3D Recursion Tree</h2>
         <div class="legend">
-          <span><i class="legend-color default"></i>Default</span>
-          <span><i class="legend-color active"></i>Active recursion</span>
           <span><i class="legend-color pivot"></i>Pivot</span>
           <span><i class="legend-color compare"></i>Comparing</span>
-          <span><i class="legend-color swap"></i>Swapping</span>
-          <span><i class="legend-color sorted"></i>Sorted</span>
+          <span><i class="legend-color left"></i>Left partition</span>
+          <span><i class="legend-color right"></i>Right partition</span>
+          <span><i class="legend-color final"></i>Final sorted / leaf</span>
         </div>
-        <div id="arrayContainer" class="array-container"></div>
-      </section>
-
-      <section class="panel details-panel">
-        <h2>Selected Node Details</h2>
-        <div id="nodeDetails" class="node-details">
-          Click a graph node to inspect its recursive call details.
-        </div>
-      </section>
-
-      <section class="panel tree-panel full-width">
-        <h2>Recursion Tree with Comparisons</h2>
-        <div id="treeContainer" class="tree-container"></div>
+        <div id="threeContainer" class="three-container"></div>
       </section>
     </main>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script type="module" src="script.js"></script>
 </body>
 </html>

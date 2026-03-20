@@ -1,222 +1,63 @@
 import { randomInt } from './algorithm.js';
-import { buildTreeLayout } from './graphLayout.js';
+import { computeTreeLayout } from './treeLayout.js';
 
-export function generateQuickSortSteps(inputArray) {
+export function generateQuickSortTreeSteps(inputArray) {
   const arr = [...inputArray];
   const sequence = [];
-  const treeNodes = [];
-  let nodeIdCounter = 0;
-  let orderCounterByDepth = {};
+  const nodes = [];
+  let nodeCounter = 0;
+  const orderByDepth = {};
 
   function nextOrder(depth) {
-    if (!(depth in orderCounterByDepth)) orderCounterByDepth[depth] = 0;
-    return orderCounterByDepth[depth]++;
+    if (!(depth in orderByDepth)) orderByDepth[depth] = 0;
+    return orderByDepth[depth]++;
   }
 
-  function createNode(low, high, depth, parentId, subarraySnapshot) {
-    const id = `node-${nodeIdCounter++}`;
+  function createNodeObject(subarray, depth, parentId, branchLabel, low, high) {
     const node = {
-      id,
-      low,
-      high,
+      id: `node-${nodeCounter++}`,
+      subarray: [...subarray],
       depth,
       parentId,
+      branchLabel,
+      low,
+      high,
       order: nextOrder(depth),
-      subarray: [...subarraySnapshot]
+      pivotValue: null,
+      pivotIndexLocal: null,
+      leftPartition: [],
+      rightPartition: []
     };
-    treeNodes.push(node);
+    nodes.push(node);
     return node;
   }
 
-  function partition(a, low, high, depth, node) {
-    const pivot = a[high];
+  function quickSortRecursive(subarray, depth = 0, parentId = null, branchLabel = 'root', low = 0, high = subarray.length - 1) {
+    const node = createNodeObject(subarray, depth, parentId, branchLabel, low, high);
 
     sequence.push({
-      type: 'choose_pivot',
-      low,
-      high,
-      pivotIndex: high,
-      pivotValue: pivot,
+      type: 'create_node',
       depth,
       nodeId: node.id,
       nodeData: {
         ...node,
-        phase: 'choose_pivot',
-        pivotValue: pivot
-      }
-    });
-
-    let i = low - 1;
-
-    for (let j = low; j <= high - 1; j++) {
-      sequence.push({
-        type: 'compare',
-        low,
-        high,
-        indices: [j, high],
-        j,
-        pivotIndex: high,
-        pivotValue: pivot,
-        depth,
-        nodeId: node.id,
-        nodeData: {
-          ...node,
-          phase: 'compare',
-          comparingIndex: j,
-          pivotValue: pivot
-        }
-      });
-
-      if (a[j] < pivot) {
-        i++;
-        sequence.push({
-          type: 'swap',
-          indices: [i, j],
-          low,
-          high,
-          depth,
-          nodeId: node.id,
-          nodeData: {
-            ...node,
-            phase: 'swap',
-            swapIndices: [i, j],
-            pivotValue: pivot
-          }
-        });
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-    }
-
-    sequence.push({
-      type: 'swap',
-      indices: [i + 1, high],
-      low,
-      high,
-      depth,
-      finalPivotSwap: true,
-      nodeId: node.id,
-      nodeData: {
-        ...node,
-        phase: 'final_pivot_swap',
-        swapIndices: [i + 1, high],
-        pivotValue: pivot
-      }
-    });
-    [a[i + 1], a[high]] = [a[high], a[i + 1]];
-
-    sequence.push({
-      type: 'partition_complete',
-      low,
-      high,
-      pivotIndex: i + 1,
-      pivotValue: a[i + 1],
-      depth,
-      arrayAfterPartition: [...a],
-      nodeId: node.id,
-      nodeData: {
-        ...node,
-        phase: 'partition_complete',
-        pivotIndex: i + 1,
-        pivotValue: a[i + 1]
-      }
-    });
-
-    return i + 1;
-  }
-
-  function randomPartition(a, low, high, depth, node) {
-    const randomIndex = randomInt(low, high);
-
-    sequence.push({
-      type: 'choose_pivot',
-      low,
-      high,
-      pivotIndex: randomIndex,
-      pivotValue: a[randomIndex],
-      randomSelection: true,
-      depth,
-      nodeId: node.id,
-      nodeData: {
-        ...node,
-        phase: 'random_choice',
-        pivotIndex: randomIndex,
-        pivotValue: a[randomIndex]
+        phase: 'create_node'
       }
     });
 
     sequence.push({
-      type: 'random_swap',
-      indices: [randomIndex, high],
-      low,
-      high,
+      type: 'recursion_call',
       depth,
       nodeId: node.id,
       nodeData: {
         ...node,
-        phase: 'random_swap',
-        swapIndices: [randomIndex, high],
-        pivotValue: a[randomIndex]
+        phase: 'recursion_call'
       }
     });
 
-    [a[randomIndex], a[high]] = [a[high], a[randomIndex]];
-    return partition(a, low, high, depth, node);
-  }
-
-  function quickSort(a, low, high, depth = 0, parentId = null) {
-    const node = createNode(low, high, depth, parentId, a.slice(low, high + 1));
-
-    sequence.push({
-      type: 'recursive_call',
-      low,
-      high,
-      depth,
-      nodeId: node.id,
-      nodeData: {
-        ...node,
-        phase: 'recursive_call'
-      }
-    });
-
-    if (low < high) {
-      const pivotIndex = randomPartition(a, low, high, depth, node);
-
-      sequence.push({
-        type: 'recursive_call',
-        low,
-        high: pivotIndex - 1,
-        depth: depth + 1,
-        parentNodeId: node.id,
-        branch: 'left',
-        nodeData: {
-          ...node,
-          phase: 'spawn_left',
-          pivotIndex
-        }
-      });
-
-      quickSort(a, low, pivotIndex - 1, depth + 1, node.id);
-
-      sequence.push({
-        type: 'recursive_call',
-        low: pivotIndex + 1,
-        high,
-        depth: depth + 1,
-        parentNodeId: node.id,
-        branch: 'right',
-        nodeData: {
-          ...node,
-          phase: 'spawn_right',
-          pivotIndex
-        }
-      });
-
-      quickSort(a, pivotIndex + 1, high, depth + 1, node.id);
-    } else {
+    if (subarray.length <= 1) {
       sequence.push({
         type: 'base_case',
-        low,
-        high,
         depth,
         nodeId: node.id,
         nodeData: {
@@ -224,23 +65,146 @@ export function generateQuickSortSteps(inputArray) {
           phase: 'base_case'
         }
       });
+      return [...subarray];
     }
+
+    const working = [...subarray];
+    const randomIndex = randomInt(0, working.length - 1);
+    [working[randomIndex], working[working.length - 1]] = [working[working.length - 1], working[randomIndex]];
+    const pivot = working[working.length - 1];
+    node.pivotValue = pivot;
+    node.pivotIndexLocal = working.length - 1;
+
+    sequence.push({
+      type: 'choose_pivot',
+      depth,
+      nodeId: node.id,
+      pivotValue: pivot,
+      pivotIndexLocal: node.pivotIndexLocal,
+      nodeData: {
+        ...node,
+        subarray: [...working],
+        phase: 'choose_pivot',
+        pivotValue: pivot,
+        pivotIndexLocal: working.length - 1
+      }
+    });
+
+    const left = [];
+    const right = [];
+
+    for (let j = 0; j < working.length - 1; j++) {
+      sequence.push({
+        type: 'compare',
+        depth,
+        nodeId: node.id,
+        compareIndex: j,
+        pivotValue: pivot,
+        pivotIndexLocal: working.length - 1,
+        nodeData: {
+          ...node,
+          subarray: [...working],
+          phase: 'compare',
+          compareIndex: j,
+          pivotValue: pivot
+        }
+      });
+
+      if (working[j] < pivot) {
+        left.push(working[j]);
+        sequence.push({
+          type: 'partition_left',
+          depth,
+          nodeId: node.id,
+          movedValue: working[j],
+          leftSnapshot: [...left],
+          rightSnapshot: [...right],
+          nodeData: {
+            ...node,
+            subarray: [...working],
+            phase: 'partition_left',
+            movedValue: working[j],
+            leftPartition: [...left],
+            rightPartition: [...right],
+            pivotValue: pivot
+          }
+        });
+      } else {
+        right.push(working[j]);
+        sequence.push({
+          type: 'partition_right',
+          depth,
+          nodeId: node.id,
+          movedValue: working[j],
+          leftSnapshot: [...left],
+          rightSnapshot: [...right],
+          nodeData: {
+            ...node,
+            subarray: [...working],
+            phase: 'partition_right',
+            movedValue: working[j],
+            leftPartition: [...left],
+            rightPartition: [...right],
+            pivotValue: pivot
+          }
+        });
+      }
+    }
+
+    node.leftPartition = [...left];
+    node.rightPartition = [...right];
+
+    sequence.push({
+      type: 'create_node',
+      depth: depth + 1,
+      parentNodeId: node.id,
+      branch: '< pivot',
+      previewSubarray: [...left],
+      nodeData: {
+        ...node,
+        phase: 'create_left_child',
+        leftPartition: [...left],
+        rightPartition: [...right],
+        pivotValue: pivot
+      }
+    });
+
+    const sortedLeft = quickSortRecursive(left, depth + 1, node.id, '< pivot', low, low + left.length - 1);
+
+    sequence.push({
+      type: 'create_node',
+      depth: depth + 1,
+      parentNodeId: node.id,
+      branch: '>= pivot',
+      previewSubarray: [...right],
+      nodeData: {
+        ...node,
+        phase: 'create_right_child',
+        leftPartition: [...left],
+        rightPartition: [...right],
+        pivotValue: pivot
+      }
+    });
+
+    const sortedRight = quickSortRecursive(right, depth + 1, node.id, '>= pivot', low + left.length + 1, low + left.length + right.length);
+
+    return [...sortedLeft, pivot, ...sortedRight];
   }
 
-  quickSort(arr, 0, arr.length - 1, 0, null);
+  const sortedArray = quickSortRecursive(arr);
+
+  computeTreeLayout(nodes);
 
   sequence.push({
     type: 'complete',
-    sortedArray: [...arr],
-    depth: 0
+    sortedArray,
+    nodeData: null
   });
-
-  buildTreeLayout(treeNodes);
 
   return {
     sequence,
     meta: {
-      treeNodes
+      nodes
     }
   };
 }
