@@ -28,6 +28,14 @@ const arrayContainer = document.getElementById('arrayContainer');
 const sortedText = document.getElementById('sortedText');
 const nodeDetails = document.getElementById('nodeDetails');
 
+window.addEventListener('error', event => {
+  setMessage(`Runtime error: ${event.message} (see console)`, 'error');
+});
+
+window.addEventListener('unhandledrejection', event => {
+  setMessage(`Unhandled promise rejection: ${event.reason}`, 'error');
+});
+
 const compCountEl = document.getElementById('compCount');
 const swapCountEl = document.getElementById('swapCount');
 const depthCountEl = document.getElementById('depthCount');
