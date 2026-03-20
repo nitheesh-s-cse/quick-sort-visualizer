@@ -60,9 +60,11 @@ function setMessage(text, type = '') {
 }
 
 function setControlsEnabled(enabled) {
-  [runBtn, stepBtn, autoBtn, resetBtn, randomBtn].forEach(btn => {
+  [runBtn, stepBtn, resetBtn, randomBtn].forEach(btn => {
     btn.disabled = !enabled;
   });
+  // keep auto button enabled while auto mode is running so user can pause
+  autoBtn.disabled = false;
 }
 
 function speedLevelToMs(level) {
