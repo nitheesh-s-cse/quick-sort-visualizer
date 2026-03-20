@@ -59,6 +59,12 @@ function setMessage(text, type = '') {
   if (type) messageBox.classList.add(type);
 }
 
+function setControlsEnabled(enabled) {
+  [runBtn, stepBtn, autoBtn, resetBtn, randomBtn].forEach(btn => {
+    btn.disabled = !enabled;
+  });
+}
+
 function speedLevelToMs(level) {
   const map = {
     1: 520,
@@ -188,6 +194,7 @@ async function processStep() {
 async function runAuto() {
   state.autoRunning = true;
   autoBtn.textContent = 'Pause';
+  setControlsEnabled(false);
 
   while (state.autoRunning && state.stepIndex < state.steps.sequence.length) {
     await processStep();
@@ -198,6 +205,8 @@ async function runAuto() {
     state.autoRunning = false;
     autoBtn.textContent = 'Auto';
   }
+
+  setControlsEnabled(true);
 }
 
 runBtn.addEventListener('click', async () => {

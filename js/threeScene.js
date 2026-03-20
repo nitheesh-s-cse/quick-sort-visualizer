@@ -10,6 +10,7 @@ export class ThreeQuickSortScene {
 
     this.nodes = new Map();
     this.edges = [];
+    this.backgroundGroup = null;
     this.hoveredNode = null;
     this.selectedNode = null;
 
@@ -53,6 +54,10 @@ export class ThreeQuickSortScene {
     this.rootGroup = new THREE.Group();
     this.scene.add(this.rootGroup);
 
+    this.backgroundGroup = new THREE.Group();
+    this.scene.add(this.backgroundGroup);
+    this.createBackgroundAssets();
+
     this.addLights();
     this.createGraph(treeNodes);
     this.attachEvents();
@@ -75,6 +80,51 @@ export class ThreeQuickSortScene {
     const purple = new THREE.PointLight(0x9c5cff, 0.8, 50);
     purple.position.set(8, -5, 8);
     this.scene.add(purple);
+  }
+
+  createBackgroundAssets() {
+    if (!this.backgroundGroup) return;
+    this.clearBackgroundAssets();
+
+    for (let i = 0; i < 36; i++) {
+      const edge = new THREE.TorusGeometry(9 + (i % 3), 0.04, 8, 100);
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(`hsl(${200 + i * 3}, 90%, 65%)`),
+        transparent: true,
+        opacity: 0.18
+      });
+      const ring = new THREE.Mesh(edge, material);
+      ring.rotation.x = Math.PI / 2;
+      ring.rotation.y = (i / 36) * Math.PI * 2;
+      ring.userData.spin = 0.02 + (i % 7) * 0.001;
+      this.backgroundGroup.add(ring);
+    }
+
+    for (let i = 0; i < 18; i++) {
+      const star = new THREE.OctahedronGeometry(0.2, 0);
+      const material = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(`hsl(${180 + i * 9}, 85%, 68%)`),
+        emissive: new THREE.Color(`hsl(${180 + i * 9}, 100%, 75%)`),
+        emissiveIntensity: 0.8,
+        roughness: 0.2,
+        metalness: 0.9,
+        transparent: true,
+        opacity: 0.85
+      });
+      const mesh = new THREE.Mesh(star, material);
+      mesh.position.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 30);
+      mesh.userData.spin = 0.01 + Math.random() * 0.02;
+      this.backgroundGroup.add(mesh);
+    }
+  }
+
+  clearBackgroundAssets() {
+    if (!this.backgroundGroup) return;
+    this.backgroundGroup.children.forEach(obj => {
+      if (obj.geometry) obj.geometry.dispose?.();
+      if (obj.material) obj.material.dispose?.();
+    });
+    this.backgroundGroup.clear();
   }
 
   createTextTexture(lines, bg = '#19305f', color = '#ffffff') {
@@ -128,6 +178,18 @@ export class ThreeQuickSortScene {
       transparent: true
     });
 
+    const ringGeometry = new THREE.TorusGeometry(1.08, 0.05, 10, 64);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0x4a79d8,
+      transparent: true,
+      opacity: 0.5
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(0, 0, 0);
+    ring.visible = false;
+    group.add(ring);
+
     const label = new THREE.Sprite(labelMaterial);
     label.scale.set(2.4, 1.2, 1);
     label.position.set(0, 1.45, 0);
@@ -138,6 +200,7 @@ export class ThreeQuickSortScene {
       targetScale: 1,
       hoverScale: 1,
       pulse: 0,
+      ring,
       labelTexture
     };
 
@@ -212,6 +275,12 @@ export class ThreeQuickSortScene {
 
     sphere.material.color.setHex(color);
     sphere.material.emissive.setHex(emissive);
+
+    if (group.userData.ring) {
+      group.userData.ring.visible = (state === 'pivot' || state === 'compare' || state === 'swap');
+      group.userData.ring.material.color.setHex(state === 'pivot' ? 0xffd24d : state === 'compare' ? 0xff8b3d : state === 'swap' ? 0x9c5cff : 0x4a79d8);
+      group.userData.ring.material.opacity = (state === 'pivot' ? 0.92 : state === 'compare' ? 0.78 : state === 'swap' ? 0.78 : 0.3);
+    }
 
     const low = group.userData.low;
     const high = group.userData.high;
@@ -377,6 +446,14 @@ export class ThreeQuickSortScene {
         this.rootGroup.rotation.y = THREE.MathUtils.lerp(this.rootGroup.rotation.y, this.rotationTarget.y, 0.08);
       }
 
+      if (this.backgroundGroup) {
+        this.backgroundGroup.rotation.y += delta * 0.08;
+        this.backgroundGroup.children.forEach(child => {
+          child.rotation.x += (child.userData.spin || 0) * 0.8;
+          child.rotation.y += (child.userData.spin || 0) * 0.8;
+        });
+      }
+
       this.nodes.forEach(group => {
         const target = group.userData.targetScale * group.userData.hoverScale * (group.userData.pulse || 1);
         group.scale.lerp(new THREE.Vector3(target, target, target), 0.12);
@@ -440,6 +517,7 @@ export class ThreeQuickSortScene {
 
     this.nodes.clear();
     this.edges = [];
+    this.backgroundGroup = null;
 
     if (this.renderer) {
       this.renderer.dispose();
