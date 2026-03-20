@@ -96,7 +96,7 @@ export class ThreeQuickSortScene {
       const ring = new THREE.Mesh(edge, material);
       ring.rotation.x = Math.PI / 2;
       ring.rotation.y = (i / 36) * Math.PI * 2;
-      ring.userData.spin = 0.02 + (i % 7) * 0.001;
+      ring.userData = { spin: 0.02 + (i % 7) * 0.001 };
       this.backgroundGroup.add(ring);
     }
 
@@ -113,7 +113,7 @@ export class ThreeQuickSortScene {
       });
       const mesh = new THREE.Mesh(star, material);
       mesh.position.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 30);
-      mesh.userData.spin = 0.01 + Math.random() * 0.02;
+      mesh.userData = { spin: 0.01 + Math.random() * 0.02 };
       this.backgroundGroup.add(mesh);
     }
   }
@@ -396,13 +396,18 @@ export class ThreeQuickSortScene {
     this.focusNode(this.hoveredNode);
     const group = this.nodes.get(this.hoveredNode);
     if (group && this.options.onNodeClick) {
-      this.options.onNodeClick({
-        id: group.userData.id,
-        low: group.userData.low,
-        high: group.userData.high,
-        depth: group.userData.depth,
-        subarray: group.userData.subarray
-      });
+      const nodeData = {
+        id: group.userData.id || null,
+        low: group.userData.low || null,
+        high: group.userData.high || null,
+        depth: group.userData.depth ?? null,
+        phase: group.userData.phase || null,
+        subarray: group.userData.subarray || [],
+        pivotValue: group.userData.pivotValue,
+        pivotIndex: group.userData.pivotIndex,
+        swapIndices: group.userData.swapIndices
+      };
+      this.options.onNodeClick(nodeData);
     }
   }
 
