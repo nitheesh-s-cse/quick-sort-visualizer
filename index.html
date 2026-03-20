@@ -88,18 +88,19 @@
       </section>
 
       <section class="panel explanation-panel">
-        <h2>Graph Tree Explanation</h2>
+        <h2>Recursion Tree Explanation</h2>
         <p>
-          This visualization represents recursion as a <strong>3D graph tree</strong>.
+          This visualization represents recursion as a <strong>structured tree</strong>.
         </p>
         <ul>
-          <li>Each recursive call is shown as a <strong>node</strong>.</li>
+          <li>Each recursive call is shown as a <strong>box node</strong>.</li>
           <li>Each partition creates <strong>left</strong> and <strong>right</strong> recursive branches.</li>
-          <li>Left subtree = elements < pivot</li>
+          <li>Left subtree = elements &lt; pivot</li>
           <li>Right subtree = elements ≥ pivot</li>
+          <li>Each node shows range [low, high] and pivot value</li>
         </ul>
         <p class="info-note">
-          Click a node to focus the camera on that subtree.
+          Hover over a node to see comparison details.
         </p>
       </section>
 
@@ -149,14 +150,13 @@
         </div>
       </section>
 
-      <section class="panel graph-panel">
-        <h2>3D Recursion Graph</h2>
-        <div id="threeContainer" class="three-container"></div>
+      <section class="panel tree-panel full-width">
+        <h2>Recursion Tree with Comparisons</h2>
+        <div id="treeContainer" class="tree-container"></div>
       </section>
     </main>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script type="module" src="script.js"></script>
 </body>
 </html>

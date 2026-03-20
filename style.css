@@ -99,9 +99,9 @@ body {
 .output-panel { grid-column: span 3; }
 .complexity-panel { grid-column: span 3; }
 .explanation-panel { grid-column: span 3; }
-.pseudocode-panel { grid-column: span 5; }
+.pseudocode-panel { grid-column: span 6; }
 .details-panel { grid-column: span 3; }
-.graph-panel { grid-column: span 9; }
+.tree-panel { grid-column: 1 / -1; }
 .full-width { grid-column: 1 / -1; }
 
 .form-group {
@@ -377,13 +377,71 @@ button:disabled {
   color: var(--text);
 }
 
-.three-container {
+.tree-container {
   width: 100%;
-  height: 560px;
-  border-radius: 16px;
-  overflow: hidden;
+  min-height: 500px;
+  border-radius: 14px;
+  background: rgba(10, 20, 50, 0.6);
   border: 1px solid rgba(255,255,255,0.06);
-  background: radial-gradient(circle at center, #0f1a36, #09101e);
+  overflow-x: auto;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px;
+  gap: 15px;
+}
+
+.tree-node {
+  background: linear-gradient(135deg, rgba(75, 120, 216, 0.35), rgba(100, 80, 200, 0.28));
+  border: 2px solid rgba(93, 157, 255, 0.6);
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 160px;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(53, 151, 255, 0.25);
+}
+
+.tree-node:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 25px rgba(29, 233, 255, 0.5);
+  transform: scale(1.05);
+  background: linear-gradient(135deg, rgba(75, 120, 216, 0.5), rgba(100, 80, 200, 0.4));
+}
+
+.tree-node-label {
+  font-weight: 700;
+  color: var(--primary-2);
+  font-size: 1.05rem;
+  margin: 0 0 6px 0;
+}
+
+.tree-node-subarray {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 4px 0;
+  word-break: break-word;
+}
+
+.tree-node-pivot {
+  font-size: 0.8rem;
+  color: var(--gold);
+  font-weight: 600;
+  margin: 6px 0 0 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 212, 77, 0.3);
+}
+
+.tree-node-comparisons {
+  font-size: 0.75rem;
+  color: var(--orange);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 139, 61, 0.3);
 }
 
 @media (max-width: 1200px) {
@@ -393,7 +451,7 @@ button:disabled {
   .explanation-panel,
   .pseudocode-panel,
   .details-panel,
-  .graph-panel {
+  .tree-panel {
     grid-column: span 12;
   }
 }
@@ -404,8 +462,8 @@ button:disabled {
     height: 88px;
   }
 
-  .three-container {
-    height: 420px;
+  .tree-container {
+    min-height: 350px;
   }
 
   .node-details {

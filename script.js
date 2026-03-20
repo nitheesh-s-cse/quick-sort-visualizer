@@ -12,7 +12,6 @@ import {
   updateSortedUI,
   updateNodeDetails
 } from './js/animation.js';
-import { ThreeQuickSortScene } from './js/threeScene.js';
 
 const arrayInput = document.getElementById('arrayInput');
 const speedControl = document.getElementById('speedControl');
@@ -27,6 +26,7 @@ const messageBox = document.getElementById('messageBox');
 const arrayContainer = document.getElementById('arrayContainer');
 const sortedText = document.getElementById('sortedText');
 const nodeDetails = document.getElementById('nodeDetails');
+const treeContainer = document.getElementById('treeContainer');
 
 window.addEventListener('error', event => {
   setMessage(`Runtime error: ${event.message} (see console)`, 'error');
@@ -52,14 +52,10 @@ let state = {
     comparisons: 0,
     swaps: 0,
     maxDepth: 0
-  }
+  },
+  treeNodes: [],
+  nodeComparisonCounts: {}
 };
-
-const threeScene = new ThreeQuickSortScene('threeContainer', {
-  onNodeClick: (nodeData) => {
-    updateNodeDetails(nodeDetails, nodeData);
-  }
-});
 
 function setMessage(text, type = '') {
   messageBox.textContent = text;
@@ -73,6 +69,43 @@ function setControlsEnabled(enabled) {
   });
   // keep auto button enabled while auto mode is running so user can pause
   autoBtn.disabled = false;
+}
+
+function buildTreeView(treeNodes) {
+  treeContainer.innerHTML = '';
+  
+  // Group nodes by depth
+  const nodesByDepth = {};
+  treeNodes.forEach(node => {
+    if (!nodesByDepth[node.depth]) nodesByDepth[node.depth] = [];
+    nodesByDepth[node.depth].push(node);
+  });
+
+  // Create nodes sorted by depth
+  const depths = Object.keys(nodesByDepth).map(Number).sort((a, b) => a - b);
+  
+  depths.forEach(depth => {
+    const depthNodes = nodesByDepth[depth];
+    depthNodes.sort((a, b) => a.order - b.order);
+    
+    depthNodes.forEach(node => {
+      const nodeEl = document.createElement('div');
+      nodeEl.className = 'tree-node';
+      nodeEl.dataset.nodeId = node.id;
+      
+      const comparableElements = node.subarray ? node.subarray.filter(el => el !== undefined) : [];
+      const compCount = state.nodeComparisonCounts[node.id] || 0;
+      
+      nodeEl.innerHTML = `
+        <div class="tree-node-label">[${node.low}, ${node.high}]</div>
+        <div class="tree-node-subarray">[${comparableElements.join(', ')}]</div>
+        <div class="tree-node-pivot">Depth: ${node.depth}</div>
+        ${compCount > 0 ? `<div class="tree-node-comparisons">Comparisons: ${compCount}</div>` : ''}
+      `;
+      
+      treeContainer.appendChild(nodeEl);
+    });
+  });
 }
 
 function speedLevelToMs(level) {
@@ -132,12 +165,19 @@ function prepareSimulation() {
   state.prepared = true;
   state.autoRunning = false;
   state.finished = false;
+  state.treeNodes = state.steps.meta.treeNodes;
+  state.nodeComparisonCounts = {};
+
+  // Initialize comparison counts for all nodes
+  state.treeNodes.forEach(node => {
+    state.nodeComparisonCounts[node.id] = 0;
+  });
 
   resetStats();
   clearPseudocodeHighlight();
   resetArrayView(arrayContainer);
   createArrayBlocks(arrayContainer, state.currentArray);
-  threeScene.initialize(state.steps.meta.treeNodes, state.currentArray);
+  buildTreeView(state.treeNodes);
 
   updateNodeDetails(nodeDetails, null);
   setAnimationSpeed(speedLevelToMs(Number(speedControl.value)));
@@ -153,13 +193,19 @@ async function applyStep(step) {
   if (step.depth !== undefined) {
     state.stats.maxDepth = Math.max(state.stats.maxDepth, step.depth);
   }
-  if (step.type === 'compare') state.stats.comparisons++;
+  if (step.type === 'compare') {
+    state.stats.comparisons++;
+    // Track comparisons per node
+    if (step.nodeId) {
+      state.nodeComparisonCounts[step.nodeId] = (state.nodeComparisonCounts[step.nodeId] || 0) + 1;
+      buildTreeView(state.treeNodes);
+    }
+  }
   if (step.type === 'swap' || step.type === 'random_swap') state.stats.swaps++;
 
   updateStatsUI(state.stats, compCountEl, swapCountEl, depthCountEl);
 
   await applyArrayStep(arrayContainer, state.currentArray, step);
-  threeScene.applyStep(step, state.currentArray);
 
   if (step.type === 'random_swap' || step.type === 'swap') {
     const [i, j] = step.indices;
@@ -260,13 +306,15 @@ resetBtn.addEventListener('click', () => {
     prepared: false,
     autoRunning: false,
     finished: false,
-    stats: { comparisons: 0, swaps: 0, maxDepth: 0 }
+    stats: { comparisons: 0, swaps: 0, maxDepth: 0 },
+    treeNodes: [],
+    nodeComparisonCounts: {}
   };
 
   resetStats();
   clearPseudocodeHighlight();
   resetArrayView(arrayContainer);
-  threeScene.dispose();
+  treeContainer.innerHTML = '';
   updateNodeDetails(nodeDetails, null);
   setMessage('Visualization reset.', 'warning');
 });
@@ -280,8 +328,4 @@ randomBtn.addEventListener('click', () => {
 
 speedControl.addEventListener('input', () => {
   setAnimationSpeed(speedLevelToMs(Number(speedControl.value)));
-});
-
-window.addEventListener('beforeunload', () => {
-  threeScene.dispose();
 });
