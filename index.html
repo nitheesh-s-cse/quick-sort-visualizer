@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Randomized Quick Sort Visualization — CS3401 Seminar Project</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-content">
+        <h1>Randomized Quick Sort Visualization</h1>
+        <p class="subtitle">CS3401 Seminar Project</p>
+        <p class="hero-description">
+          Randomized Quick Sort uses a <strong>random pivot</strong> before partitioning.
+        </p>
+        <p class="hero-highlight">
+          <strong>Random pivot selection reduces worst-case probability</strong>
+        </p>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="panel controls-panel">
+        <h2>Controls</h2>
+
+        <div class="form-group">
+          <label for="arrayInput">Array Input (comma-separated)</label>
+          <input id="arrayInput" type="text" value="7,4,6,3,9,1,8" />
+          <small>Maximum array size: 20</small>
+        </div>
+
+        <div class="form-group">
+          <label for="speedControl">Animation Speed</label>
+          <input id="speedControl" type="range" min="1" max="5" value="3" />
+          <div class="speed-labels">
+            <span>Slow</span>
+            <span>Turbo</span>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="runBtn" class="primary">Run</button>
+          <button id="stepBtn">Step</button>
+          <button id="autoBtn">Auto</button>
+          <button id="resetBtn">Reset</button>
+          <button id="randomBtn">Random array</button>
+        </div>
+
+        <div id="messageBox" class="message-box" aria-live="polite"></div>
+      </section>
+
+      <section class="panel output-panel">
+        <h2>Output</h2>
+        <div class="result-card">
+          <div class="result-label">Sorted Result</div>
+          <div id="sortedText" class="result-text">Sorted Array: [ ]</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-title">Total comparisons</span>
+            <span id="compCount">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-title">Total swaps</span>
+            <span id="swapCount">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-title">Max recursion depth</span>
+            <span id="depthCount">0</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel complexity-panel">
+        <h2>Complexity</h2>
+        <ul class="complexity-list">
+          <li><strong>Randomized Quick Sort:</strong></li>
+          <li>Best: <strong>O(n log n)</strong></li>
+          <li>Average: <strong>O(n log n)</strong></li>
+          <li>Worst: <strong>O(n²)</strong></li>
+        </ul>
+        <p class="info-note">
+          <strong>Randomization helps avoid worst-case scenarios</strong>
+        </p>
+      </section>
+
+      <section class="panel explanation-panel">
+        <h2>Graph Tree Explanation</h2>
+        <p>
+          This visualization represents recursion as a <strong>3D graph tree</strong>.
+        </p>
+        <ul>
+          <li>Each recursive call is shown as a <strong>node</strong>.</li>
+          <li>Each partition creates <strong>left</strong> and <strong>right</strong> recursive branches.</li>
+          <li>Left subtree = elements < pivot</li>
+          <li>Right subtree = elements ≥ pivot</li>
+        </ul>
+        <p class="info-note">
+          Click a node to focus the camera on that subtree.
+        </p>
+      </section>
+
+      <section class="panel pseudocode-panel">
+        <h2>Pseudocode</h2>
+        <pre id="pseudocode" class="pseudocode-block">
+<span data-line="1">function quickSort(arr, low, high):</span>
+<span data-line="2">  if low &lt; high:</span>
+<span data-line="3">    pivotIndex = randomPartition(arr, low, high)</span>
+<span data-line="4">    quickSort(arr, low, pivotIndex - 1)</span>
+<span data-line="5">    quickSort(arr, pivotIndex + 1, high)</span>
+
+<span data-line="6">function randomPartition(arr, low, high):</span>
+<span data-line="7">  randomIndex = random(low, high)</span>
+<span data-line="8">  swap(arr[randomIndex], arr[high])</span>
+<span data-line="9">  return partition(arr, low, high)</span>
+
+<span data-line="10">function partition(arr, low, high):</span>
+<span data-line="11">  pivot = arr[high]</span>
+<span data-line="12">  i = low - 1</span>
+<span data-line="13">  for j = low to high-1:</span>
+<span data-line="14">    if arr[j] &lt; pivot:</span>
+<span data-line="15">      i++</span>
+<span data-line="16">      swap(arr[i], arr[j])</span>
+<span data-line="17">  swap(arr[i+1], arr[high])</span>
+<span data-line="18">  return i + 1</span>
+        </pre>
+      </section>
+
+      <section class="panel array-panel full-width">
+        <h2>Partition Array View</h2>
+        <div class="legend">
+          <span><i class="legend-color default"></i>Default</span>
+          <span><i class="legend-color active"></i>Active recursion</span>
+          <span><i class="legend-color pivot"></i>Pivot</span>
+          <span><i class="legend-color compare"></i>Comparing</span>
+          <span><i class="legend-color swap"></i>Swapping</span>
+          <span><i class="legend-color sorted"></i>Sorted</span>
+        </div>
+        <div id="arrayContainer" class="array-container"></div>
+      </section>
+
+      <section class="panel details-panel">
+        <h2>Selected Node Details</h2>
+        <div id="nodeDetails" class="node-details">
+          Click a graph node to inspect its recursive call details.
+        </div>
+      </section>
+
+      <section class="panel graph-panel">
+        <h2>3D Recursion Graph</h2>
+        <div id="threeContainer" class="three-container"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
