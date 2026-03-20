@@ -74,6 +74,42 @@ function setControlsEnabled(enabled) {
 function buildTreeView(treeNodes) {
   treeContainer.innerHTML = '';
   
+  if (!treeNodes || treeNodes.length === 0) return;
+
+  // Create SVG for tree connections
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'tree-svg');
+  svg.setAttribute('viewBox', '0 0 1400 800');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  
+  // Add gradients defs
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  gradient.setAttribute('id', 'treeGradient');
+  gradient.setAttribute('x1', '0%');
+  gradient.setAttribute('y1', '0%');
+  gradient.setAttribute('x2', '100%');
+  gradient.setAttribute('y2', '100%');
+  
+  const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stop1.setAttribute('offset', '0%');
+  stop1.setAttribute('stop-color', 'rgba(75, 120, 216, 0.35)');
+  gradient.appendChild(stop1);
+  
+  const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stop2.setAttribute('offset', '100%');
+  stop2.setAttribute('stop-color', 'rgba(100, 80, 200, 0.28)');
+  gradient.appendChild(stop2);
+  
+  defs.appendChild(gradient);
+  svg.appendChild(defs);
+  
+  treeContainer.appendChild(svg);
+
+  // Calculate tree layout
+  const nodePositions = new Map();
+  const levelHeights = {};
+  
   // Group nodes by depth
   const nodesByDepth = {};
   treeNodes.forEach(node => {
@@ -81,31 +117,140 @@ function buildTreeView(treeNodes) {
     nodesByDepth[node.depth].push(node);
   });
 
-  // Create nodes sorted by depth
+  // Calculate positions for each node
+  const maxDepth = Math.max(...Object.keys(nodesByDepth).map(Number));
   const depths = Object.keys(nodesByDepth).map(Number).sort((a, b) => a - b);
   
+  const nodeWidth = 140;
+  const nodeHeight = 100;
+  const verticalGap = 140;
+  const horizontalGap = 160;
+
+  depths.forEach(depth => {
+    const depthNodes = nodesByDepth[depth];
+    depthNodes.sort((a, b) => a.order - b.order);
+    
+    const nodesAtDepth = depthNodes.length;
+    const totalWidth = nodesAtDepth * horizontalGap;
+    const startX = (1400 - totalWidth) / 2;
+    const y = depth * verticalGap + 40;
+
+    depthNodes.forEach((node, index) => {
+      const x = startX + index * horizontalGap + horizontalGap / 2;
+      nodePositions.set(node.id, { x, y, node });
+    });
+  });
+
+  // Draw lines connecting parent to children
+  treeNodes.forEach(node => {
+    if (node.parentId) {
+      const childPos = nodePositions.get(node.id);
+      const parentPos = nodePositions.get(node.parentId);
+      
+      if (childPos && parentPos) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', parentPos.x);
+        line.setAttribute('y1', parentPos.y + nodeHeight / 2);
+        line.setAttribute('x2', childPos.x);
+        line.setAttribute('y2', childPos.y - nodeHeight / 2);
+        line.setAttribute('class', 'tree-connection');
+        svg.appendChild(line);
+      }
+    }
+  });
+
+  // Create node boxes with details
   depths.forEach(depth => {
     const depthNodes = nodesByDepth[depth];
     depthNodes.sort((a, b) => a.order - b.order);
     
     depthNodes.forEach(node => {
-      const nodeEl = document.createElement('div');
-      nodeEl.className = 'tree-node';
-      nodeEl.dataset.nodeId = node.id;
+      const pos = nodePositions.get(node.id);
+      if (!pos) return;
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'tree-node-group');
+      g.setAttribute('data-node-id', node.id);
       
+      // Background rectangle
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', pos.x - nodeWidth / 2);
+      rect.setAttribute('y', pos.y - nodeHeight / 2);
+      rect.setAttribute('width', nodeWidth);
+      rect.setAttribute('height', nodeHeight);
+      rect.setAttribute('class', 'tree-node-box');
+      rect.setAttribute('rx', '8');
+      rect.setAttribute('ry', '8');
+      g.appendChild(rect);
+
       const comparableElements = node.subarray ? node.subarray.filter(el => el !== undefined) : [];
       const compCount = state.nodeComparisonCounts[node.id] || 0;
-      
-      nodeEl.innerHTML = `
-        <div class="tree-node-label">[${node.low}, ${node.high}]</div>
-        <div class="tree-node-subarray">[${comparableElements.join(', ')}]</div>
-        <div class="tree-node-pivot">Depth: ${node.depth}</div>
-        ${compCount > 0 ? `<div class="tree-node-comparisons">Comparisons: ${compCount}</div>` : ''}
-      `;
-      
-      treeContainer.appendChild(nodeEl);
+
+      // Range text
+      const rangeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      rangeText.setAttribute('x', pos.x);
+      rangeText.setAttribute('y', pos.y - 30);
+      rangeText.setAttribute('class', 'tree-node-text range');
+      rangeText.setAttribute('text-anchor', 'middle');
+      rangeText.textContent = `[${node.low}, ${node.high}]`;
+      g.appendChild(rangeText);
+
+      // Subarray text
+      const subarrayText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      subarrayText.setAttribute('x', pos.x);
+      subarrayText.setAttribute('y', pos.y - 8);
+      subarrayText.setAttribute('class', 'tree-node-text subarray');
+      subarrayText.setAttribute('text-anchor', 'middle');
+      const shortArray = comparableElements.length > 4 
+        ? `[${comparableElements.slice(0, 3).join(',')}...]`
+        : `[${comparableElements.join(',')}]`;
+      subarrayText.textContent = shortArray;
+      g.appendChild(subarrayText);
+
+      // Comparisons text
+      const compText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      compText.setAttribute('x', pos.x);
+      compText.setAttribute('y', pos.y + 15);
+      compText.setAttribute('class', 'tree-node-text comparisons');
+      compText.setAttribute('text-anchor', 'middle');
+      compText.textContent = `Comp: ${compCount}`;
+      g.appendChild(compText);
+
+      // Depth text
+      const depthText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      depthText.setAttribute('x', pos.x);
+      depthText.setAttribute('y', pos.y + 32);
+      depthText.setAttribute('class', 'tree-node-text depth');
+      depthText.setAttribute('text-anchor', 'middle');
+      depthText.textContent = `D:${node.depth}`;
+      g.appendChild(depthText);
+
+      // Add hover/click interaction
+      g.style.cursor = 'pointer';
+      g.addEventListener('mouseenter', () => {
+        rect.setAttribute('class', 'tree-node-box hover');
+      });
+      g.addEventListener('mouseleave', () => {
+        rect.setAttribute('class', 'tree-node-box');
+      });
+      g.addEventListener('click', () => {
+        updateNodeDetails(nodeDetails, node);
+      });
+
+      svg.appendChild(g);
     });
   });
+
+  // Add legend below tree
+  const legend = document.createElement('div');
+  legend.className = 'tree-legend';
+  legend.innerHTML = `
+    <div style="font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 16px;">
+      <strong style="color: var(--primary-2);">Tree Legend:</strong> 
+      [low, high] = Array range | [elements] = Subarray | Comp = Comparisons at this node | D = Depth
+    </div>
+  `;
+  treeContainer.appendChild(legend);
 }
 
 function speedLevelToMs(level) {
